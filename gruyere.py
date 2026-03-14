@@ -472,7 +472,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
     self.send_header('Content-type', 'text/html')
     self.send_header('Pragma', 'no-cache')
     if new_cookie_text:
-      self.send_header('Set-Cookie', new_cookie_text)
+      self.send_header('Set-Cookie', new_cookie_text + "; Max-age=7200")
     self.send_header('X-XSS-Protection', '0')
     self.end_headers()
     self.wfile.write(html.encode())
@@ -643,9 +643,9 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
         return self.NULL_COOKIE
       values = cookie_data.split('|')
       return {
-          COOKIE_UID: values[0],
-          COOKIE_ADMIN: values[1] == 'admin',
-          COOKIE_AUTHOR: values[2] == 'author',
+          COOKIE_UID: '|'.join(values[0:-2]),
+          COOKIE_ADMIN: values[-2] == 'admin',
+          COOKIE_AUTHOR: values[-1] == 'author',
       }
     except (IndexError, ValueError):
       return self.NULL_COOKIE
