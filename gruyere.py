@@ -241,7 +241,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
     NULL_COOKIE = {COOKIE_UID: None, COOKIE_ADMIN: False, COOKIE_AUTHOR: False}
 
     # Urls that can only be accessed by administrators.
-    _PROTECTED_URLS = ["/quit", "/reset"]
+    _PROTECTED_URLS = ["/quitserver", "/reset"]
 
     # crawls the ressources folder for .gtl files
     def _getValidUrls():
