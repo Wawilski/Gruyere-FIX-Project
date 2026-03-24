@@ -468,7 +468,11 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
         message = None
         new_cookie_text = None
         action = self._GetParameter(params, "action")
-        if action == "new":
+        if self._GetParameter(params, "is_admin") != None and not cookie.get(
+            COOKIE_ADMIN
+        ):
+            message = "Invalid request"
+        elif action == "new":
             if uid in database:
                 message = "User already exists."
             else:
@@ -479,6 +483,8 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
         elif action == "update":
             if uid not in database:
                 message = "User does not exist."
+            # Must be admin or current user to do changes on profile
+
             elif (
                 newpw
                 and database[uid]["pw"] != self._GetParameter(params, "oldpw")
