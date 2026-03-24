@@ -25,19 +25,20 @@ from builtins import str
 
 __author__ = "Bruce Leban"
 
-# system modules
-from http.server import BaseHTTPRequestHandler
-from http.server import HTTPServer
 import cgi
-import pickle
+import glob
 import os
+import pickle
 import random
 import sys
 import threading
-import urllib.request, urllib.parse, urllib.error
-from urllib.parse import urlparse
-import glob
+import urllib.error
+import urllib.parse
+import urllib.request
 
+# system modules
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse
 
 try:
     sys.dont_write_bytecode = True
@@ -47,7 +48,6 @@ except AttributeError:
 # our modules
 import data
 import gtl
-
 
 DB_FILE = "/stored-data.txt"
 SECRET_FILE = "/secret.txt"
@@ -307,7 +307,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
             uid = self._GetParameter(params, "uid")
             if uid in database:
                 if database[uid]["pw"] == self._GetParameter(params, "pw"):
-                    (cookie, new_cookie_text) = self._CreateCookie("GRUYERE", uid)
+                    cookie, new_cookie_text = self._CreateCookie("GRUYERE", uid)
                     self._DoHome(cookie, specials, params, new_cookie_text)
                     return
             message = "Invalid user name or password."
@@ -323,7 +323,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
           specials: Other special values for this request.
           params: Cgi parameters.
         """
-        (cookie, new_cookie_text) = self._CreateCookie("GRUYERE", None)
+        cookie, new_cookie_text = self._CreateCookie("GRUYERE", None)
         self._DoHome(cookie, specials, params, new_cookie_text)
 
     def _Do(self, cookie, specials, params):
@@ -474,7 +474,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
             else:
                 profile_data["pw"] = newpw
                 database[uid] = profile_data
-                (cookie, new_cookie_text) = self._CreateCookie("GRUYERE", uid)
+                cookie, new_cookie_text = self._CreateCookie("GRUYERE", uid)
                 message = "Account created."  # error message can also indicates success
         elif action == "update":
             if uid not in database:
@@ -658,7 +658,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
           The cookie if it matches or None if it doesn't match.
         """
         try:
-            (cn, cd) = cookie.strip().split("=", 1)
+            cn, cd = cookie.strip().split("=", 1)
             if cn != cookie_name:
                 return None
         except (IndexError, ValueError):
@@ -675,7 +675,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
           A map containing the values in the cookie.
         """
         try:
-            (hashed, cookie_data) = cookie.split("|", 1)
+            hashed, cookie_data = cookie.split("|", 1)
             # global cookie_secret
             if hashed != str(hash(cookie_secret + cookie_data) & 0x7FFFFFF):
                 return self.NULL_COOKIE
@@ -707,7 +707,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
           specials: Other special values for this request.
           params: Cgi parameters. (unused)
         """
-        (filename, file_data) = self._ExtractFileFromRequest()
+        filename, file_data = self._ExtractFileFromRequest()
         directory = self._MakeUserDirectory(cookie[COOKIE_UID])
 
         message = None
@@ -716,7 +716,7 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
             f = _Open(directory, filename, "wb")
             f.write(file_data)
             f.close()
-            (host, port) = http_server.server_address
+            host, port = http_server.server_address
             url = "http://%s:%d/%s/%s/%s" % (
                 host,
                 port,
@@ -841,16 +841,13 @@ class GruyereRequestHandler(BaseHTTPRequestHandler):
         request_ip = self.client_address[0]  # DO NOT CHANGE
         if request_ip not in allowed_ips:  # DO NOT CHANGE
             print(
-                (  # DO NOT CHANGE
-                    "DANGER! Request from bad ip: " + request_ip
-                ),
+                ("DANGER! Request from bad ip: " + request_ip),  # DO NOT CHANGE
                 file=sys.stderr,
             )  # DO NOT CHANGE
             _Exit("bad_ip")  # DO NOT CHANGE
 
         if (
-            server_unique_id not in path  # DO NOT CHANGE
-            and path != "/favicon.ico"
+            server_unique_id not in path and path != "/favicon.ico"  # DO NOT CHANGE
         ):  # DO NOT CHANGE
             if path == "" or path == "/":  # DO NOT CHANGE
                 self._SendRedirect("/", server_unique_id)  # DO NOT CHANGE
