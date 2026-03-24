@@ -56,7 +56,48 @@ William \textsc{Karpinski}\\
 
 \tableofcontents
 
-\section{CookieFix}
+\section{Cookie Manipulation}
+
+This exploit use cookies to connect to other user account without their password. It also allows to connect to an account with admin privileges even if the account is not an admin (elevation of privilege).
+
+\subsection{Exploit}\label{CookieExpl}
+
+To replicate this exploit, let's take a user named \textbf{new}. The user
+cookie of \textbf{new} looks like this:
+
+\begin{figure}[H] \centering \includegraphics[width =
+  0.9\textwidth]{images/cookie_new.png} \caption{Format: hash | User ID |
+  is\_admin | is\_author , where is\_admin (resp. is\_author) defines if the
+  user is an admin (resp. author) or not. } \end{figure}
+
+  If we create a new user with the name \textbf{new|admin|author}, the user
+  cookie would look like this : 
+
+\begin{figure}[H]
+    \centering
+            \includegraphics[width = 0.9\textwidth]{images/cookie_exploit.png}
+        \caption{Cookie of the new user }
+\end{figure}
+
+Here, if we want to connect to the second account we will be connected to the first account with admin privileges.
+
+
+\begin{figure}[H]
+    \centering
+            \includegraphics[width = 0.9\textwidth]{images/cookie_admin.png}
+        \caption{User connected to the first account with admin privileges}
+\end{figure}
+
+\subsection{Fix}\label{CookieFix}
+
+The issue here is that, in the code, we dont separe the UID and the other fields. When we parse the cookie, we split the fields via the pipes, so if we put pipes in our User ID it will split the ID too. After the split we check thefields from left to right so if we put the right fields in the User ID we can
+negligate the true privileges of the user and elevates to the admin privileges 
+
+The fix here is to take the name appart of the fields for the admin and author permissions. As we know that the cookie will create the last two fields by default we can check these two in priority after the split and concatenate the rest of the cookie as the User ID.
+\subsection{Validation}\label{CookieValidation}
+
+Now, if we connect as the \textbf{new|admin|author} user, we won't access to the \textbf{new} account even if the cookie stays the same.
+
 \section{Elevation of Privilege}
 \section{Path Traversal}
 In this section, the path traversal attacks are addressed.\\
