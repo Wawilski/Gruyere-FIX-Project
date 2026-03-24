@@ -216,6 +216,68 @@ To validate the fix of the vulnerability, we look at the results of the last com
 
 
 \section{Denial of Service}
+In this section, the Denial of Service is addressed.
+Denial of service attacks aim at taking down the proper functionning of a device or service. This leads to the violation of the availability porperty from th CIA triad (Confidentiality, Integrity, and Availability). It is one of the most common attacks on the internet.\\
+\S\ref{sec:DoSExpl} explains different Denial of Service exploits and how to recreate them. \\
+\S\ref{sec:DoSFix} explains how we addressed the exploits and fixed them. \\
+\S\ref{sec:DoSValidation} validates the absence of the exploits after the implemented fixes. 
+
+\subsection{Exploits}\label{sec:DoSExpl} 
+\subsubsection{Quitting the server}
+To shut down the server, administrator privileges should be required. But as represented in Figure \ref{fig:DoSquit}, simply visiting the \code{/quitserver} url is sufficient to shut it down without any prior login or cookie.
+
+\begin{figure}[ht]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/quit.png}
+    \end{center}
+    \caption{Quitting the server simply by requesting the \protect\code{/quitserver} url}\label{fig:DoSquit}
+\end{figure}
+
+\subsubsection{Resetting the server}
+As for the shutting down of the server, the reset should be protected and only available to privileged users. But as the Figure \ref{fig:DoSreset} demonstrates, it is also possible by using the \code{/RESET} url to reset the server without prior login.
+
+\begin{figure}[ht]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/reset.png}
+    \end{center}
+    \caption{Resetting the server simply by requesting the \protect\code{/RESET} url}\label{fig:DoSreset}
+\end{figure}
+
+\subsection{Fixes}\label{sec:DoSFix} 
+\subsubsection{Quitting the server}
+The fix of this vulnerability is as simple as a single line of code. As the \code{\_PROTECTED\_URLS} variable is set to  
+\code{["/quit", "/reset"]} which, to protect the \code{quitserver} url, as to be changed to \code{["/quitserver", "/reset"]}.
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/a897c89d98a331abe22039d7f05f2c4d8d041d48}{This commit} addresses this change.
+
+
+\subsubsection{Resetting the server}
+This vulnerability is already addressed by the Path Traversal fix, as the \code{/RESET} url isn't a correct url. 
+
+\subsection{Validations}\label{sec:DoSValidation} 
+\subsubsection{Quitting the server}
+The Figure \ref{fig:DoSquitFix} demonstrates the fix of the quitserver vulnerability.
+
+\begin{figure}[ht]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/quitFix.png}
+    \end{center}
+    \caption{The quitserver url vulnerability fixed}\label{fig:DoSquitFix}
+\end{figure}
+
+
+
+
+\subsubsection{Resetting the server}
+The Figure \ref{fig:DoSResetFix} demonstrates the fix of the RESET vulnerability.
+
+\begin{figure}[ht]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/resetFix.png}
+    \end{center}
+    \caption{The reset url protection with the path traversal fix}\label{fig:DoSResetFix}
+\end{figure}
+
+
 
 \newpage
 \end{document}
