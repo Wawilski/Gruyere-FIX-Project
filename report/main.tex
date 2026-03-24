@@ -1,4 +1,3 @@
-
 \documentclass[a4paper, 12pt]{article}
 \usepackage[pdftex]{graphicx}
 \usepackage[T1]{fontenc}
@@ -7,8 +6,35 @@
 \usepackage{algpseudocode}
 \usepackage{algorithm}
 \usepackage{minted}
+\usepackage{tcolorbox}
+\usemintedstyle{fruity}
 \usepackage{hyperref}
 \usepackage{biblatex} %Imports biblatex package
+
+\usepackage{caption}
+\usepackage{subcaption}
+
+\definecolor{codebg}{HTML}{222222}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
+\usepackage{tikz}
+\tikzset{%
+        baseline,
+        inner sep=2pt,
+        minimum height=12pt,
+        rounded corners=2pt  
+    }
+\newcommand{\code}[1]{\mbox{% added this percent
+        \ttfamily
+        \tikz \node[anchor=base,fill=black!12]{#1};% added this percent
+}}
 
 \begin{document}
 \begin{titlepage}
@@ -16,7 +42,6 @@
 {\Large University of Mons}\\[1ex]
 {\Large Faculty of Sciences}\\[1ex]
 {\Large Computer Science department}\\[2.5cm]
-
 \newcommand{\HRule}{\rule{\linewidth}{0.3mm}}
 % Title
 \HRule \\[0.3cm]
@@ -59,17 +84,135 @@ William \textsc{Karpinski}\\
 \section{CookieFix}
 \section{Elevation of Privilege}
 \section{Path Traversal}
-In this section, the path traversal attacks are addressed.\\
+In this section, the path traversal attacks are addressed.
+Path traversal attacks consist of accessing files outside the original scope of the website by using a malicious path. 
+This exploit can lead to devastating information leak. For example, if the server is running with root privileges, it might be possible to access the \code{/etc/shadow} file.
+Path traversal can also be used to upload malicious files in directory outside the website context.\\
 \S\ref{pathTraversalExpl} explains the exploit and how to recreate it. \\
 \S\ref{pathTraversalFix} explains how we addressed the exploit and fixed it. \\
 \S\ref{pathTraversalValidation} validates the absence of the exploit after the implemented fix. 
 \subsection{Exploit}\label{pathTraversalExpl}
+The exploit is as simple as using \code{../} to go back in the context path.
+Tough to be able to enter the \code{/} we have to use \code{\%2f} tag for it to be considered. 
+
+Figure \ref{fig:pathTraversalExpl} describes how to exploit the path traversal vulnerability. It demonstrates how an innocent file (\code{secret.txt} from the Gruyère app) can be accessed as well as more sensible files  (\code{/etc/passwd} file). 
+
+\begin{figure}[ht]
+    \begin{minted}{bash}
+$ curl http://127.0.0.1:8008/..%2f/secret.txt
+Cookie!
+$ curl http://127.0.0.1:8008/..%2f/..%2f/..%2f/..%2f/..%2f/..%2f/etc/passwd
+root:x:0:0::/root:/usr/bin/bash
+etude:x:1000:1000::/home/etude:/usr/bin/zsh
+git:x:973:973:git daemon user:/:/usr/bin/git-shell
+....
+    \end{minted}
+    \caption{Example of the path traversal attack.}\label{fig:pathTraversalExpl}
+\end{figure}
 
 \subsection{Fix}\label{pathTraversalFix}
+To fix the path traversal vulnerability, we figured it was necessary to only accept a restricted list of urls and reject every request not matching any of these urls.
+
+To this end, we initialize a list of authorized urls to be the empty url (\code{/}), the pages defined by the \code{.gtl} files and the methods such as login, reset, etc (see Figure \ref{fig:PathtraversalAuthorized}).  
+Then, to be able to consider uploaded files, in the \code{HandleRequest(self, path, query, unique\_id)} method, we crawl in the ressource folder to find if the requested url correspond to added content (see Figure \ref{fig:PathtraversalCheck}).
+
+All the changes regarding the fix of the Path traversal vulnerability is assessed in \href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/27f2a1523d54b69ea82b231bbb409345ae083d1e}{this commit}.
+
+\begin{figure}
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+    # crawls the ressources folder for .gtl files
+    def _getValidUrls():
+        # starts with the empty url
+        urls = ["/"]
+
+        for ressource_url in glob.iglob(f"./{RESOURCE_PATH}/*"):
+            if ".gtl" in ressource_url:
+                urls.append(ressource_url[len(RESOURCE_PATH) + 2 :])
+            else:
+                urls.append(ressource_url[len(RESOURCE_PATH) + 2 :])
+
+        # all methods to be accepted
+
+        urls.extend(
+            [
+                "/deletesnippet",
+                "/home",
+                "/login",
+                "/logout",
+                "/newsnippet2",
+                "/quitserver",
+                "/reset",
+                "/saveprofile",
+                "/upload2",
+            ]
+        )
+        print(urls)
+        return urls
+
+    # The only urls that are accepted (to avoid path traversal)
+    _AUTHORIZED_URLS = _getValidUrls()
+
+        \end{minted}
+    \caption{initial Authorized urls}\label{fig:PathtraversalAuthorized}
+\end{figure}
+
+\begin{figure}
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+        # check the static _AUTHORIZED_URLS
+        if path not in self._AUTHORIZED_URLS:
+            # checks for the added content (uploaded files)
+
+            added = list(
+                map(
+                    lambda x: x[len(RESOURCE_PATH) :],
+                    glob.iglob(f"{RESOURCE_PATH}/*/*"),
+                ),
+            )
+            for i in added:
+                print(i)
+
+            if path not in added:
+                self._SendError("Invalid request", cookie, specials, params)
+                return
+
+        \end{minted}
+    \caption{initial Authorized urls}\label{fig:PathtraversalCheck}
+\end{figure}
+
+
 
 \subsection{Validation}\label{pathTraversalValidation}
+To validate the fix of the vulnerability, we look at the results of the last commands in Figure \ref{fig:pathTraversalFixedExpl}.
 
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/pathSecret.png}
+    \end{subfigure}
+    \begin{subfigure}[b]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/pathETCPaswd.png}
+    \end{subfigure}
 
+    \caption{Fixed requests from Figure \ref{fig:pathTraversalExpl}}\label{fig:pathTraversalFixedExpl}
+\end{figure}
 
 
 \section{Denial of Service}

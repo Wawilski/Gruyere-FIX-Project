@@ -8,3 +8,8 @@ stored-data.txt
 *.pdf
 *.synctex.gz
 *.toc
+*.ltex
+report/main.bbl
+report/main.bcf
+report/main.blg
+report/_minted/*
