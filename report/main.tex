@@ -1,0 +1,567 @@
+\documentclass[a4paper, 12pt]{article}
+\usepackage[pdftex]{graphicx}
+\usepackage[T1]{fontenc}
+\usepackage{wrapfig}
+\usepackage{graphicx} 
+\usepackage{algpseudocode}
+\usepackage{algorithm}
+\usepackage{minted}
+\usepackage{tcolorbox}
+\usemintedstyle{fruity}
+\usepackage{hyperref}
+\usepackage{biblatex} %Imports biblatex package
+
+\usepackage{caption}
+\usepackage{subcaption}
+
+\definecolor{codebg}{HTML}{222222}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    filecolor=magenta,      
+    urlcolor=blue,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+
+\usepackage{tikz}
+\tikzset{%
+        baseline,
+        inner sep=2pt,
+        minimum height=12pt,
+        rounded corners=2pt  
+    }
+\newcommand{\code}[1]{\mbox{% added this percent
+        \ttfamily
+        \tikz \node[anchor=base,fill=black!12]{#1};% added this percent
+}}
+
+\begin{document}
+\begin{titlepage}
+\begin{center}
+{\Large University of Mons}\\[1ex]
+{\Large Faculty of Sciences}\\[1ex]
+{\Large Computer Science department}\\[2.5cm]
+\newcommand{\HRule}{\rule{\linewidth}{0.3mm}}
+% Title
+\HRule \\[0.3cm]
+{ \LARGE \bfseries Cybersecurity : Web security Homework report \\[0.1cm]} 
+\HRule \\[1.5cm]
+
+% Author and supervisor
+\begin{minipage}[t]{0.45\textwidth}
+\begin{flushleft} \large
+\emph{Teacher :}\\
+Quentin \textsc{De Coninck}\\
+
+\emph{Group 7}\\
+\end{flushleft}
+\end{minipage}
+\begin{minipage}[t]{0.45\textwidth}
+\begin{flushright} \large
+\emph{Authors :} \\
+Maxime \textsc{Bartha}\\
+William \textsc{Karpinski}\\
+\end{flushright}
+\end{minipage}\\[2ex]
+
+\vfill
+
+% Bottom of the page
+\begin{center}
+\begin{tabular}[t]{c c c}
+\includegraphics[height=1.5cm]{images/logoumons.jpg} &
+\hspace{0.3cm} &
+\includegraphics[height=1.5cm]{images/logofs.jpg}
+\end{tabular}
+\end{center}~\\
+ 
+{\large Academic Year 2025-2026}
+
+\end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+
+\section{Introduction}
+
+In this homework, we were asked to search and fix 4 different exploits seen in the Google Gruyere website. During this report, we will explain the different exploits, and propose a fix for each of them.
+
+\section{Cookie Manipulation}
+In this section, the cookie manipulation exploit is addressed. 
+This exploit consists of using cookies logging into another user account
+without their password. It also allows logging with admin privileges as non-privileged user (which is a kind of elevation
+of privilege).\\
+\S\ref{CookieExpl} explains the exploit and how to recreate it. \\
+\S\ref{CookieFix} explains how we addressed the exploit and fixed it. \\
+\S\ref{CookieValidation} validates the absence of the exploit after the implemented fix. 
+
+\subsection{Exploit}\label{CookieExpl}
+
+To replicate this exploit, let's take a user named \code{new}. The user cookie
+of \code{new} is illustrated in Figure \ref{cookie_new}. The format of the
+cookie follows this pattern: \code{hash | User ID | is\_admin | is\_author},
+where is\_admin (resp. is\_author) defines if the user is an admin (resp.
+author).
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width = 0.9\textwidth]{images/cookie_new.png} 
+  \caption{Cookie of the first user.  }
+  \label{cookie_new}
+\end{figure}
+
+Let's create a new user with the name \code{new|admin|author}, this user
+cookie is showed in Figure \ref{cookie_newAdmin}. 
+
+\begin{figure}[H] 
+  \centering 
+  \includegraphics[width =0.9\textwidth]{images/cookie_exploit.png}
+  \caption{Cookie of the new user }
+  \label{cookie_newAdmin}
+\end{figure}
+
+If we want to log into the second account we will be logged into the
+first account with admin privileges, and the true privileges of the user
+are ignored.
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width =0.9\textwidth]{images/cookie_admin.png} 
+  \caption{User logged into the first account with admin privileges}
+\end{figure}
+
+\subsection{Fix}\label{CookieFix}
+
+The issue is that the UID and the other fields are in the same string. 
+When we parse the cookie, we split the fields via the pipes in the 
+cookie's value, so if we put pipes in our User ID it will split the ID too. 
+After the split we check the fields from left to right, so if we put the right
+fields in the User ID we are able to create a made-up cookie value inside
+the true cookie. Permitting us to log into another account and choose the level of
+privileges wanted. 
+
+\begin{figure}[ht]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+  def _ParseCookie(self, cookie):
+      """Parses the cookie and returns NULL_COOKIE if it's invalid.
+
+      Args:
+        cookie: The text of the cookie.
+
+      Returns:
+        A map containing the values in the cookie.
+      """
+      try:
+          hashed, cookie_data = cookie.split("|", 1)
+          # global cookie_secret
+          if hashed != str(hash(cookie_secret + cookie_data) & 0x7FFFFFF):
+              return self.NULL_COOKIE
+          values = cookie_data.split("|")
+          return {
+              COOKIE_UID: values[0],
+              COOKIE_ADMIN: values[1] == 'admin',
+              COOKIE_AUTHOR: values[2] == 'author',
+          }
+      except (IndexError, ValueError):
+          return self.NULL_COOKIE
+
+        \end{minted}
+    \caption{initial Cookie Parsing}\label{fig:initCookieParsing}
+\end{figure}
+
+
+A possible fix here, is to take the name appart of the other fields.
+As we know that the cookie will create the last two fields by
+default we can check these two in priority after the split and concatenate 
+the rest of the cookie as the User ID.
+
+All the changes regarding the fix of the Cookie Manipulation vulnerability is
+assessed in
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/541b9429f8d6e9deca442883aea5a0b329dfac99}{this
+commit}.
+
+\begin{figure}[ht]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+  def _ParseCookie(self, cookie):
+      """Parses the cookie and returns NULL_COOKIE if it's invalid.
+
+      Args:
+        cookie: The text of the cookie.
+
+      Returns:
+        A map containing the values in the cookie.
+      """
+      try:
+          hashed, cookie_data = cookie.split("|", 1)
+          # global cookie_secret
+          if hashed != str(hash(cookie_secret + cookie_data) & 0x7FFFFFF):
+              return self.NULL_COOKIE
+          values = cookie_data.split("|")
+          return {
+              COOKIE_UID: "|".join(values[0:-2]),
+              COOKIE_ADMIN: values[-2] == "admin",
+              COOKIE_AUTHOR: values[-1] == "author",
+          }
+      except (IndexError, ValueError):
+          return self.NULL_COOKIE
+
+        \end{minted}
+    \caption{fixed Cookie Parsing}\label{fig:CookieParsing}
+\end{figure}
+
+
+\subsection{Validation}\label{CookieValidation}
+
+Now, if we log into the \code{new|admin|author} account, we won't access to
+the \code{new} account (even if the cookie stays the same as before).
+
+\section{Elevation of Privilege}
+
+In this section, the elevation of privilege is addressed. 
+This issue consists of giving a user privileges higher than his current ones 
+(in this case admin privileges).\\
+\S\ref{ElevationExpl} explains the exploit and how to recreate it. \\
+\S\ref{ElevationFix} explains how we addressed the exploit and fixed it. \\
+\S\ref{ElevationValidation} validates the absence of the exploit after the implemented fix. 
+
+\subsection{Exploit}\label{ElevationExpl}
+
+When we create or change a profile, we use the \code{/saveprofile} url, with
+the fields needed to create or change the profile.
+
+Here, using \code{is\_admin=True} in the url's field, we can create an admin
+user or change the privileges of an existing user to admin, without any
+verification. 
+
+So, these url templates (with a chosen \code{user\_uid}) can be used, for respectively create a user admin and change a user privileges to admin: 
+
+\begin{itemize}
+  \item \code{/saveprofile?action=new\&is\_admin=True}\\
+    \code{\&is\_author=True\&uid=user\_uid\&pwd=user\_pwd}
+  \item \code{/saveprofile?action=update\&is\_admin=True}\\
+    \code{\&uid=user\_uid}
+\end{itemize}
+
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width = 0.9\textwidth]{images/elevation_exploit.png} 
+  \caption{ Elevation of privilege example creating an admin user }
+\end{figure}
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width = 0.9\textwidth]{images/elevation_exploit_created.png} 
+  \caption{ Admin user created with the exploit }
+\end{figure}
+
+
+\subsection{Fix}\label{ElevationFix}
+
+The issue is that there is no verification about any permission 
+when we create a new user or change a user profile. A possible fix is
+to only allow admins to create other users.
+All the changes regarding the fix of the Elevation of Privilege vulnerability is
+assessed in
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/9724b92b281e21da648befeea0d0e2b33523cb8b}{this
+commit}.
+
+\begin{figure}[H]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+    action = self._GetParameter(params, 'action')
+    if action == 'new':
+      if uid in database:
+        message = 'User already exists.'
+      else:
+        profile_data['pw'] = newpw
+        database[uid] = profile_data
+        (cookie, new_cookie_text) = self._CreateCookie('GRUYERE', uid)
+        message = 'Account created.'  # error message can also indicates success
+    elif action == 'update':
+      if uid not in database:
+        message = 'User does not exist.'
+      elif (newpw and database[uid]['pw'] != self._GetParameter(params, 'oldpw')
+            and not cookie.get(COOKIE_ADMIN)):
+        # must be admin or supply old pw to change password
+        message = 'Incorrect password.'
+      else:
+        if newpw:
+          profile_data['pw'] = newpw
+        database[uid].update(profile_data)
+        redirect = '/'
+
+        \end{minted}
+    \caption{Extract of the method used to save profiles}
+    \label{fig:ElevationIssue}
+\end{figure}
+
+\begin{figure}[H]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+    action = self._GetParameter(params, 'action')
+    if self._GetParameter(params, "is_admin") != None and not cookie.get(
+          COOKIE_ADMIN
+      ):
+          message = "Invalid request"
+    elif action == "new":
+      if uid in database:
+        message = "User already exists."       
+      else:
+        profile_data['pw'] = newpw
+        database[uid] = profile_data
+        (cookie, new_cookie_text) = self._CreateCookie('GRUYERE', uid)
+        message = 'Account created.'  # error message can also indicates success
+    elif action == 'update':
+      if uid not in database:
+        message = 'User does not exist.'
+      elif (newpw and database[uid]['pw'] != self._GetParameter(params, 'oldpw')
+          and not cookie.get(COOKIE_ADMIN)):
+        # must be admin or supply old pw to change password
+        message = 'Incorrect password.'
+    else:
+      if newpw:
+        profile_data['pw'] = newpw
+        database[uid].update(profile_data)
+      redirect = '/'
+
+        \end{minted}
+    \caption{Extract of the method used to save profiles}
+    \label{fig:ElevationFix}
+\end{figure}
+
+\subsection{Validation}\label{ElevationValidation}
+If we retry the templates to create the exploit, an invalid request will be raised and the user won't be created or modified (if the current user is not an admin).
+
+\section{Path Traversal}
+In this section, the path traversal attacks are addressed. They consist of accessing files outside the original scope of the website by using a malicious path. 
+This exploit can lead to devastating information leak. For example, if the server is running with root privileges, it might be possible to access the \code{/etc/shadow} file.
+Path traversal can also be used to upload malicious files in directory outside the website context.\\
+\S\ref{pathTraversalExpl} explains the exploit and how to recreate it. \\
+\S\ref{pathTraversalFix} explains how we addressed the exploit and fixed it. \\
+\S\ref{pathTraversalValidation} validates the absence of the exploit after the implemented fix. 
+\subsection{Exploit}\label{pathTraversalExpl}
+The exploit is as simple as using \code{../} to go back in the context path.
+Tough to be able to enter the \code{/} we have to use \code{\%2f} tag for it to be considered. 
+
+Figure \ref{fig:pathTraversalExpl} describes how to exploit the path traversal vulnerability. It demonstrates how an innocent file (\code{secret.txt} from the Gruyère app) can be accessed as well as more sensible files  (\code{/etc/passwd} file). 
+
+\begin{figure}[ht]
+    \begin{minted}{bash}
+$ curl http://127.0.0.1:8008/..%2f/secret.txt
+Cookie!
+$ curl http://127.0.0.1:8008/..%2f/..%2f/..%2f/..%2f/..%2f/..%2f/etc/passwd
+root:x:0:0::/root:/usr/bin/bash
+etude:x:1000:1000::/home/etude:/usr/bin/zsh
+git:x:973:973:git daemon user:/:/usr/bin/git-shell
+....
+    \end{minted}
+    \caption{Example of the path traversal attack.}\label{fig:pathTraversalExpl}
+\end{figure}
+
+\subsection{Fix}\label{pathTraversalFix}
+To fix the path traversal vulnerability, we figured it was necessary to only accept a restricted list of urls and reject every request not matching any of these urls.
+
+To this end, we initialize a list of authorized urls to be the empty url (\code{/}), the pages defined by the \code{.gtl} files and the methods such as login, reset, etc (see Figure \ref{fig:PathtraversalAuthorized}).  
+Then, to be able to consider uploaded files, in the \code{HandleRequest(self, path, query, unique\_id)} method, we crawl in the ressource folder to find if the requested url correspond to added content (see Figure \ref{fig:PathtraversalCheck}).
+
+All the changes regarding the fix of the Path traversal vulnerability is addressed in \href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/27f2a1523d54b69ea82b231bbb409345ae083d1e}{this commit}.
+\newpage
+
+\begin{figure}[ht]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+    # crawls the ressources folder for .gtl files
+    def _getValidUrls():
+        # starts with the empty url
+        urls = ["/"]
+
+        for ressource_url in glob.iglob(f"./{RESOURCE_PATH}/*"):
+            if ".gtl" in ressource_url:
+                urls.append(ressource_url[len(RESOURCE_PATH) + 2 :])
+            else:
+                urls.append(ressource_url[len(RESOURCE_PATH) + 2 :])
+
+        # all methods to be accepted
+
+        urls.extend(
+            [
+                "/deletesnippet",
+                "/home",
+                "/login",
+                "/logout",
+                "/newsnippet2",
+                "/quitserver",
+                "/reset",
+                "/saveprofile",
+                "/upload2",
+            ]
+        )
+        print(urls)
+        return urls
+
+    # The only urls that are accepted (to avoid path traversal)
+    _AUTHORIZED_URLS = _getValidUrls()
+
+        \end{minted}
+    \caption{Initial Authorized urls}\label{fig:PathtraversalAuthorized}
+\end{figure}
+\newpage
+
+\begin{figure}[ht]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+
+        # check the static _AUTHORIZED_URLS
+        if path not in self._AUTHORIZED_URLS:
+            # checks for the added content (uploaded files)
+
+            added = list(
+                map(
+                    lambda x: x[len(RESOURCE_PATH) :],
+                    glob.iglob(f"{RESOURCE_PATH}/*/*"),
+                ),
+            )
+            for i in added:
+                print(i)
+
+            if path not in added:
+                self._SendError("Invalid request", cookie, specials, params)
+                return
+
+        \end{minted}
+    \caption{initial Authorized urls}\label{fig:PathtraversalCheck}
+\end{figure}
+
+
+
+\subsection{Validation}\label{pathTraversalValidation}
+To validate the fix of the vulnerability, we look at the results of the last commands in Figure \ref{fig:pathTraversalFixedExpl}.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/pathSecret.png}
+    \end{subfigure}
+    \begin{subfigure}[b]{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{images/pathETCPaswd.png}
+    \end{subfigure}
+    \caption{Fixed requests from Figure \ref{fig:pathTraversalExpl}}\label{fig:pathTraversalFixedExpl}
+\end{figure}
+
+\section{Denial of Service}
+In this section, the Denial of Service is addressed.
+Denial of service attacks aim at taking down the proper functionning of a device or service. This leads to the violation of the availability porperty from th CIA triad (Confidentiality, Integrity, and Availability). It is one of the most common attacks on the internet.\\
+\S\ref{sec:DoSExpl} explains different Denial of Service exploits and how to recreate them. \\
+\S\ref{sec:DoSFix} explains how we addressed the exploits and fixed them. \\
+\S\ref{sec:DoSValidation} validates the absence of the exploits after the implemented fixes. 
+
+\subsection{Exploits}\label{sec:DoSExpl} 
+\subsubsection{Quitting the server}
+To shut down the server, administrator privileges should be required. But as represented in Figure \ref{fig:DoSquit}, simply visiting the \code{/quitserver} url is sufficient to shut it down without any prior login or cookie.
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/quit.png}
+    \end{center}
+    \caption{Quitting the server simply by requesting the \protect\code{/quitserver} url}\label{fig:DoSquit}
+\end{figure}
+
+\subsubsection{Resetting the server}
+As for the shutting down of the server, the reset should be protected and only available to privileged users. But as the Figure \ref{fig:DoSreset} demonstrates, it is also possible by using the \code{/RESET} url to reset the server without prior login.
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/reset.png}
+    \end{center}
+    \caption{Resetting the server simply by requesting the \protect\code{/RESET} url}\label{fig:DoSreset}
+\end{figure}
+
+\newpage
+\subsection{Fixes}\label{sec:DoSFix} 
+\subsubsection{Quitting the server}
+The fix of this vulnerability is as simple as a single line of code. As the \code{\_PROTECTED\_URLS} variable is set to  
+\code{["/quit", "/reset"]} which, to protect the \code{quitserver} url, as to be changed to \code{["/quitserver", "/reset"]}.
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/a897c89d98a331abe22039d7f05f2c4d8d041d48}{This commit} addresses this change.
+
+
+\subsubsection{Resetting the server}
+This vulnerability is already addressed by the Path Traversal fix, as the \code{/RESET} url isn't a correct url. 
+
+\subsection{Validations}\label{sec:DoSValidation} 
+\subsubsection{Quitting the server}
+The Figure \ref{fig:DoSquitFix} demonstrates that the \code{/quitserver} url is patched.
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/quitFix.png}
+    \end{center}
+    \caption{The quitserver url vulnerability fixed}\label{fig:DoSquitFix}
+\end{figure}
+
+
+
+
+\subsubsection{Resetting the server}
+The Figure \ref{fig:DoSquitFix} demonstrates that the \code{/RESET} url is patched.
+
+\begin{figure}[H]
+    \begin{center}
+        \includegraphics[width=\textwidth]{images/resetFix.png}
+    \end{center}
+    \caption{The reset url protection with the path traversal fix}\label{fig:DoSResetFix}
+\end{figure}
+
+\section{Conclusion}
+
+In summary, this homework permitted us to dive into web vulnerabilities cyber defense.
+We learned to identify and leverage web vulnerabilities as well as patching them. 
+Even though we didn't fix every vulnerability listed on Google's website, some of the implemented fixes make them harder or infeasible to exploit.
+\newpage
+\end{document}
