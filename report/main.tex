@@ -80,12 +80,17 @@ William \textsc{Karpinski}\\
 \end{titlepage}
 
 \tableofcontents
+\newpage
 
 \section{Cookie Manipulation}
-
-This exploit uses cookies to log into another user account without their
-password. It also allows to log into an account with admin privileges even if
-the account is not an admin.
+In this section, the cookie manipulation exploit is addressed. 
+This exploit consists of using cookies to log into another user account
+without their password. It also allows to log into an account with admin
+privileges even if the account is not an admin (which is a kind of elevation
+of privilege).\\
+\S\ref{CookieExpl} explains the exploit and how to recreate it. \\
+\S\ref{CookieFix} explains how we addressed the exploit and fixed it. \\
+\S\ref{CookieValidation} validates the absence of the exploit after the implemented fix. 
 
 \subsection{Exploit}\label{CookieExpl}
 
@@ -217,6 +222,131 @@ Now, if we log into the \code{new|admin|author} account, we won't access to
 the \code{new} account (even if the cookie stays the same as before).
 
 \section{Elevation of Privilege}
+
+In this section, the elevation of privilege is addressed. 
+This issue consists of giving a user privileges higher than his current ones 
+(in the is case admin privileges).\\
+\S\ref{ElevationExpl} explains the exploit and how to recreate it. \\
+\S\ref{ElevationFix} explains how we addressed the exploit and fixed it. \\
+\S\ref{ElevationValidation} validates the absence of the exploit after the implemented fix. 
+
+\subsection{Exploit}\label{ElevationExpl}
+
+When we create or change a profile, we use the \code{/saveprofile} url, with
+the fields needed to create or change the profile.
+
+Here, using \code{is\_admin=True} in the url's field, we can create an admin
+user or change the privileges of an existing user to admin, without any
+verification. 
+
+So, these url templates (with a chosen \code{user\_uid}) can be used, for respectively create a user admin and change a user privileges to admin: 
+
+\begin{itemize}
+  \item \code{/saveprofile?action=new\&is\_admin=True}\\
+    \code{\&is\_author=True\&uid=user\_uid\&pwd=user\_pwd}
+  \item \code{/saveprofile?action=update\&is\_admin=True}\\
+    \code{\&uid=user\_uid}
+\end{itemize}
+
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width = 0.9\textwidth]{images/elevation_exploit.png} 
+  \caption{ Elevation of privilege example creating an admin user }
+\end{figure}
+
+\begin{figure}[H]
+  \centering 
+  \includegraphics[width = 0.9\textwidth]{images/elevation_exploit_created.png} 
+  \caption{ Admin user created with the exploit }
+\end{figure}
+
+
+\subsection{Fix}\label{ElevationFix}
+
+The issue here is that there is no verification about any permission 
+when we create a new user or change a user profile. A possible fix here is
+to only allow admins to create other users.
+
+\begin{figure}[H]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+    action = self._GetParameter(params, 'action')
+    if action == 'new':
+      if uid in database:
+        message = 'User already exists.'
+      else:
+        profile_data['pw'] = newpw
+        database[uid] = profile_data
+        (cookie, new_cookie_text) = self._CreateCookie('GRUYERE', uid)
+        message = 'Account created.'  # error message can also indicates success
+    elif action == 'update':
+      if uid not in database:
+        message = 'User does not exist.'
+      elif (newpw and database[uid]['pw'] != self._GetParameter(params, 'oldpw')
+            and not cookie.get(COOKIE_ADMIN)):
+        # must be admin or supply old pw to change password
+        message = 'Incorrect password.'
+      else:
+        if newpw:
+          profile_data['pw'] = newpw
+        database[uid].update(profile_data)
+        redirect = '/'
+
+        \end{minted}
+    \caption{Extract of the method used to save profiles}
+    \label{fig:ElevationIssue}
+\end{figure}
+
+\begin{figure}[H]
+        \begin{minted}[
+            % frame=lines,
+            % framesep=2mm,
+            % baselinestretch=1.2,
+            bgcolor=codebg,
+            fontsize=\footnotesize,
+            % linenos
+            ]{java}
+    action = self._GetParameter(params, 'action')
+    if self._GetParameter(params, "is_admin") != None and not cookie.get(
+          COOKIE_ADMIN
+      ):
+          message = "Invalid request"
+    elif action == "new":
+      if uid in database:
+        message = "User already exists."       
+      else:
+        profile_data['pw'] = newpw
+        database[uid] = profile_data
+        (cookie, new_cookie_text) = self._CreateCookie('GRUYERE', uid)
+        message = 'Account created.'  # error message can also indicates success
+    elif action == 'update':
+      if uid not in database:
+        message = 'User does not exist.'
+      elif (newpw and database[uid]['pw'] != self._GetParameter(params, 'oldpw')
+          and not cookie.get(COOKIE_ADMIN)):
+        # must be admin or supply old pw to change password
+        message = 'Incorrect password.'
+    else:
+      if newpw:
+        profile_data['pw'] = newpw
+        database[uid].update(profile_data)
+      redirect = '/'
+
+        \end{minted}
+    \caption{Extract of the method used to save profiles}
+    \label{fig:ElevationFix}
+\end{figure}
+
+\subsection{Validation}\label{ElevationValidation}
+If we retry the templates to create the exploit, an invalid request will be raised and the user won't be created or modified (if the current user is not an admin).
+
 \section{Path Traversal}
 In this section, the path traversal attacks are addressed.
 Path traversal attacks consist of accessing files outside the original scope of the website by using a malicious path. 
