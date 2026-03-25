@@ -82,11 +82,15 @@ William \textsc{Karpinski}\\
 \tableofcontents
 \newpage
 
+
+\section{Introduction}
+
+In this homework, we were asked to search and fix 4 different exploits seen in the Google Gruyere website. During this report, we will explain the different exploits, and propose a fix for each of them.
+
 \section{Cookie Manipulation}
 In this section, the cookie manipulation exploit is addressed. 
-This exploit consists of using cookies to log into another user account
-without their password. It also allows to log into an account with admin
-privileges even if the account is not an admin (which is a kind of elevation
+This exploit consists of using cookies logging into another user account
+without their password. It also allows logging with admin privileges as non-privileged user (which is a kind of elevation
 of privilege).\\
 \S\ref{CookieExpl} explains the exploit and how to recreate it. \\
 \S\ref{CookieFix} explains how we addressed the exploit and fixed it. \\
@@ -94,35 +98,37 @@ of privilege).\\
 
 \subsection{Exploit}\label{CookieExpl}
 
-To replicate this exploit, let's take a user named \code{new}. The user
-cookie of \code{new} looks like this:
+To replicate this exploit, let's take a user named \code{new}. The user cookie
+of \code{new} is illustrated in Figure \ref{cookie_new}. The format of the
+cookie follows this pattern: \code{hash | User ID | is\_admin | is\_author},
+where is\_admin (resp. is\_author) defines if the user is an admin (resp.
+author).
 
 \begin{figure}[H]
   \centering 
   \includegraphics[width = 0.9\textwidth]{images/cookie_new.png} 
-  \caption{Cookie of the first user. Format: hash | User ID | is\_admin |
-is\_author , where is\_admin (resp. is\_author) defines if the user 
-  is an admin (resp. author) or not. }
-
+  \caption{Cookie of the first user.  }
+  \label{cookie_new}
 \end{figure}
 
-If we create a new user with the name \code{new|admin|author}, this user
-cookie would look like this : 
+Let's create a new user with the name \code{new|admin|author}, this user
+cookie is showed in Figure \ref{cookie_newAdmin}. 
 
 \begin{figure}[H] 
   \centering 
   \includegraphics[width =0.9\textwidth]{images/cookie_exploit.png}
   \caption{Cookie of the new user }
+  \label{cookie_newAdmin}
 \end{figure}
 
-Here, if we want to log into the second account we will be connected to the
+Here, if we want to log into the second account we will be logged into the
 first account with admin privileges, and the true privileges of the user
 are ignored.
 
 \begin{figure}[H]
   \centering 
   \includegraphics[width =0.9\textwidth]{images/cookie_admin.png} 
-  \caption{User connected to the first account with admin privileges}
+  \caption{User logged into the first account with admin privileges}
 \end{figure}
 
 \subsection{Fix}\label{CookieFix}
@@ -178,6 +184,11 @@ As we know that the cookie will create the last two fields by
 default we can check these two in priority after the split and concatenate 
 the rest of the cookie as the User ID.
 
+All the changes regarding the fix of the Cookie Manipulation vulnerability is
+assessed in
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/541b9429f8d6e9deca442883aea5a0b329dfac99}{this
+commit}.
+
 \begin{figure}[H]
         \begin{minted}[
             % frame=lines,
@@ -225,7 +236,7 @@ the \code{new} account (even if the cookie stays the same as before).
 
 In this section, the elevation of privilege is addressed. 
 This issue consists of giving a user privileges higher than his current ones 
-(in the is case admin privileges).\\
+(in this case admin privileges).\\
 \S\ref{ElevationExpl} explains the exploit and how to recreate it. \\
 \S\ref{ElevationFix} explains how we addressed the exploit and fixed it. \\
 \S\ref{ElevationValidation} validates the absence of the exploit after the implemented fix. 
@@ -267,6 +278,10 @@ So, these url templates (with a chosen \code{user\_uid}) can be used, for respec
 The issue here is that there is no verification about any permission 
 when we create a new user or change a user profile. A possible fix here is
 to only allow admins to create other users.
+All the changes regarding the fix of the Elevation of Privilege vulnerability is
+assessed in
+\href{https://github.com/Wawilski/Gruyere-FIX-Project/commit/9724b92b281e21da648befeea0d0e2b33523cb8b}{this
+commit}.
 
 \begin{figure}[H]
         \begin{minted}[
